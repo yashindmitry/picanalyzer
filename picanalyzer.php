@@ -31,4 +31,5 @@ if (isset($options['partition'])) {
 
 function error($text) {
     echo "\n", $text, "\n\n";
+    exit;
 }
