@@ -16,27 +16,30 @@ class ImagePartition {
 	/**
 	 * Делит изображение на атомарные кусочки
 	 */
-	public function getParts($path) {
-		$this->_img = new Imagick($path);
+	public function getParts($image_path, $output_path) {
+		$this->_img = new Imagick($image_path);
 		// Создаем карту пикселей
 		$this->_img_array = $this->_getPixelMap($this->_img);
 		// Ищем по карте объекты
 		do {
-			$object = $this->_findObject($this->_img_array);
+			$object = $this->_findObject();
 			if ($object) {
                 // Добавим объект
 				$this->_objects[] = $object;
                 // Удалим его с карты
-                $this->_img_array = $this->_removeObject($this->_img_array, $object);
+                $this->_removeObject($object);
 			}
 		} while ($object);
-        var_dump(count($this->_objects));exit;
+        // Сохраняем найденные объекты в файлы
+        foreach ($this->_objects as $number => $object) {
+            $this->_objectToImage($object, $output_path . $number . '.png');
+        }
 	}
 
 	/**
 	 * Возвращает попиксельную карту картинки
 	 */
-	private function _getPixelMap($img) {
+	protected function _getPixelMap($img) {
 		$img_array = array();
 		$iterator = $img->getPixelIterator();
 		foreach($iterator as $row => $pixels) {
@@ -56,11 +59,11 @@ class ImagePartition {
 	/**
 	 * Возвращает первый найденный на карте объект или false
 	 */
-	private function _findObject($map) {
-		foreach ($map as $col => $rows) {
+	protected function _findObject() {
+		foreach ($this->_img_array as $col => $rows) {
 			foreach ($rows as $row => $pixel) {
 				if ($pixel) {
-					return $this->_findBesidePixels($map, $col, $row);
+					return $this->_findBesidePixels($col, $row);
 				}
 			}
 		}
@@ -71,7 +74,7 @@ class ImagePartition {
 	/**
 	 * Возвращает массив непустых соседних пикселей
 	 */
-	private function _findBesidePixels($map, $col, $row) {
+	protected function _findBesidePixels($col, $row) {
         // Карта новой картинки
 		$image_map = array($col . '_' . $row);
         // Список пустых пикселей
@@ -86,10 +89,10 @@ class ImagePartition {
         while (count($for_check_pixels)) {
             $for_check_pixel = array_shift($for_check_pixels);
             $pixel = explode('_', $for_check_pixel);
-            if (!isset($map[$pixel[0]]) || !isset($map[$pixel[0]][$pixel[1]])) {
+            if (!isset($this->_img_array[$pixel[0]]) || !isset($this->_img_array[$pixel[0]][$pixel[1]])) {
                 // Вышли за пределы поля изображения
                 $null_pixels[] = $for_check_pixel;
-            } else if (!$map[$pixel[0]][$pixel[1]]) {
+            } else if (!$this->_img_array[$pixel[0]][$pixel[1]]) {
                 // Пустой пиксель
                 $null_pixels[] = $for_check_pixel;
             } else {
@@ -135,14 +138,62 @@ class ImagePartition {
      * @param array $map
      * @param array $object
      */
-    protected function _removeObject($map, $object) {
+    protected function _removeObject($object) {
         foreach ($object as $col => $rows) {
             foreach ($rows as $row => $pixel) {
-                $map[$col][$row] = false;
+                $this->_img_array[$col][$row] = false;
             }
         }
+    }
 
-        return $map;
+    /**
+     * Сохраняет объект в файл
+     * 
+     * @param array $object
+     * @param string $image_path
+     */
+    protected function _objectToImage($object, $image_path) {
+        // Находим минимальную и максимальную координату, ширину и высоту изображения
+        $min_col = false;
+        $min_row = false;
+        $max_col = 0;
+        $max_row = 0;
+        foreach ($object as $col => $rows) {
+            foreach ($rows as $row => $pixel) {
+                 if ($min_col !== false) {
+                     $min_col = min($min_col, $col);
+                 } else {
+                     $min_col = $col;
+                 }
+                 if ($min_row !== false) {
+                     $min_row = min($min_row, $row);
+                 } else {
+                     $min_row = $row;
+                 }
+                 $max_col = max($max_col, $col);
+                 $max_row = max($max_row, $row);
+            }
+        }
+        $width = $max_col - $min_col;
+        $height = $max_row - $min_row;
+        // Создаем изображение png с нужной шириной и высотой
+        $image = new Imagick();
+        $draw = new ImagickDraw();
+        $image->newImage($width, $height, new ImagickPixel('white'), 'png');
+        $image->setImageColorspace(imagick::COLORSPACE_RGB);
+        // Заполняем пиксели с карты объекта
+        foreach ($object as $col => $rows) {
+            foreach ($rows as $row => $pixel) {
+                $pixel = $this->_img->getImagePixelColor($col, $row);
+                $draw->setFillColor($pixel);
+                $draw->point($col - $min_col, $row - $min_row);
+            }
+        }
+        // Записываем изображение
+        $image->drawImage($draw);
+        $image->writeImage($image_path);
+        $image->clear();
+        $image->destroy();
     }
 
 }

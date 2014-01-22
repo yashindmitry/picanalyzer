@@ -6,11 +6,29 @@ require_once ROOT . 'libs/class.ImagePartition.php';
 $image_partition = new ImagePartition();
 
 $options = getopt('', array(
+    // Разделить картинку на части
     'partition::',
+    // Исходная картинка
     'image:',
+    // Директория с выходными файлами
+    'output::',
 ));
 
 if (isset($options['partition'])) {
-    $image = array_pop($argv);
-    $image_partition->getParts(ROOT . $options['image']);
+    if (!isset($options['image'])) {
+        error('Укажите аттрибут image');
+    }
+    if (!is_readable($options['image'])) {
+        error('Картинка ' . $options['image'] . ' не найдена');
+    }
+    $options['image'] = realpath($options['image']);
+    if (!is_writable($options['output'])) {
+        error('Директория ' . $options['output'] . ' не найдена или нет прав на запись');
+    }
+    $options['output'] = realpath($options['output']) . '/';
+    $image_partition->getParts($options['image'], $options['output']);
+}
+
+function error($text) {
+    echo "\n", $text, "\n\n";
 }
