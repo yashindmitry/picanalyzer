@@ -24,9 +24,13 @@ class ImagePartition {
 		do {
 			$object = $this->_findObject($this->_img_array);
 			if ($object) {
+                // Добавим объект
 				$this->_objects[] = $object;
+                // Удалим его с карты
+                $this->_img_array = $this->_removeObject($this->_img_array, $object);
 			}
 		} while ($object);
+        var_dump(count($this->_objects));exit;
 	}
 
 	/**
@@ -53,21 +57,10 @@ class ImagePartition {
 	 * Возвращает первый найденный на карте объект или false
 	 */
 	private function _findObject($map) {
-		foreach ($map as $row => $cols) {
-			foreach ($cols as $col => $pixel) {
+		foreach ($map as $col => $rows) {
+			foreach ($rows as $row => $pixel) {
 				if ($pixel) {
-					$object = $this->_findBesidePixels(
-						array(
-							$row => array($col),
-							array(
-								$row+1 => $col,
-								$row-1 => $col+1,
-								$row => $col+1,
-								$row+1 => $col+1,
-								
-							),
-						)
-					);
+					return $this->_findBesidePixels($map, $col, $row);
 				}
 			}
 		}
@@ -78,8 +71,78 @@ class ImagePartition {
 	/**
 	 * Возвращает массив непустых соседних пикселей
 	 */
-	private function _findBesidePixels($object_map, $pixel_for_check) {
-		
+	private function _findBesidePixels($map, $col, $row) {
+        // Карта новой картинки
+		$image_map = array($col . '_' . $row);
+        // Список пустых пикселей
+        $null_pixels = array();
+        // Список пикселей на проверку
+        $for_check_pixels = array(
+            ($col + 1) . '_' . $row,
+            ($col - 1) . '_' . ($row + 1),
+            $col . '_' . ($row + 1),
+            ($col + 1) . '_' . ($row + 1),
+        );
+        while (count($for_check_pixels)) {
+            $for_check_pixel = array_shift($for_check_pixels);
+            $pixel = explode('_', $for_check_pixel);
+            if (!isset($map[$pixel[0]]) || !isset($map[$pixel[0]][$pixel[1]])) {
+                // Вышли за пределы поля изображения
+                $null_pixels[] = $for_check_pixel;
+            } else if (!$map[$pixel[0]][$pixel[1]]) {
+                // Пустой пиксель
+                $null_pixels[] = $for_check_pixel;
+            } else {
+                // Не пустой пиксель
+                $image_map[] = $for_check_pixel;
+                // Добавляем все окружающие его пиксели на проверку
+                $outer_pixels = array(
+                    ($pixel[0] - 1) . '_' . ($pixel[1] - 1),
+                    $pixel[0] . '_' . ($pixel[1] - 1),
+                    ($pixel[0] + 1) . '_' . ($pixel[1] - 1),
+                    ($pixel[0] - 1) . '_' . $pixel[1],
+                    ($pixel[0] + 1) . '_' . $pixel[1],
+                    ($pixel[0] - 1) . '_' . ($pixel[1] + 1),
+                    $pixel[0] . '_' . ($pixel[1] - 1),
+                    ($pixel[0] + 1) . '_' . ($pixel[1] + 1),
+                );
+                foreach ($outer_pixels as $outer_pixel) {
+                    if (
+                        !in_array($outer_pixel, $image_map)
+                        && !in_array($outer_pixel, $null_pixels)
+                        && !in_array($outer_pixel, $for_check_pixels)
+                    ) {
+                        $for_check_pixels[] = $outer_pixel;
+                    }
+                }
+            }
+        }
+        $correct_map = array();
+        foreach ($image_map as $pixel) {
+            $pixel = explode('_', $pixel);
+            if (!isset($correct_map[$pixel[0]])) {
+                $correct_map[$pixel[0]] = array();
+            }
+            $correct_map[$pixel[0]][$pixel[1]] = true;
+        }
+
+        return $correct_map;
 	}
+
+    /**
+     * Удаляет объект с карты
+     * 
+     * @param array $map
+     * @param array $object
+     */
+    protected function _removeObject($map, $object) {
+        foreach ($object as $col => $rows) {
+            foreach ($rows as $row => $pixel) {
+                $map[$col][$row] = false;
+            }
+        }
+
+        return $map;
+    }
 
 }
