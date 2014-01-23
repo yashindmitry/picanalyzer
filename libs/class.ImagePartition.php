@@ -13,7 +13,7 @@ class ImagePartition {
 
 	const
 		  COLOR_LEVEL = 250 // Уровень, выше которого пиксель считается белым (2-255)
-		, MIN_PIXELS_COUNT_FOR_OBJECT = 4 // Минимальное количество пикселей в часте картинки
+		, MIN_PIXELS_COUNT_FOR_OBJECT = 7 // Минимальное количество пикселей в результирующей картинке
 	;
 
 	private
@@ -162,6 +162,16 @@ class ImagePartition {
      * @param string $image_path
      */
     protected function _objectToImage($object, $image_path) {
+        // Проверяем что в картинке есть требуемое количество пикселей
+        $pixels_count = 0;
+        foreach ($object as $col => $rows) {
+            foreach ($rows as $row => $pixel) {
+                $pixels_count++;
+            }
+        }
+        if ($pixels_count < self::MIN_PIXELS_COUNT_FOR_OBJECT) {
+            return false;
+        }
         // Находим минимальную и максимальную координату, ширину и высоту изображения
         $min_col = false;
         $min_row = false;
