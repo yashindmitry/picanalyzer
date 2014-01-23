@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * PicAnalyzer
+ *
+ * @author Dmitry Yashin <to.yashin@gmail.com>
+ * @link http://jonnyb.ru/picanalyzer/
+ * @copyright 2014 jonnyb.ru
+ * @license GNU GENERAL PUBLIC LICENSE Version 2
+ */
+
 class ImagePartition {
 
 	const
